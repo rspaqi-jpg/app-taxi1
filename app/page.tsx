@@ -59,7 +59,6 @@ export default function Home() {
   const estimatedKm = routeKm ?? (pickup.trim() && destination.trim() ? 5 : 0)
   const estimatedPrice = estimatedKm * selectedCar.rate
   const activeRides = useMemo(() => rides.filter((ride) => ride.status !== 'completed'), [rides])
-  const mapQuery = encodeURIComponent(pickup || 'Gjakovë, Kosovo')
 
   async function calculateRoute() {
     if (!pickup.trim() || !destination.trim()) {
@@ -223,8 +222,8 @@ export default function Home() {
             <div><p className="text-sm font-bold uppercase tracking-[.2em] text-lime-300">Shërbimi lokal</p><h2 className="mt-1 text-3xl font-black md:text-4xl">Taksi në Gjakovë.</h2><p className="mt-2 text-slate-400">Rezervo udhëtimin tënd brenda pak çastesh.</p></div>
             <div className="rounded-full border border-lime-300/20 bg-lime-300/10 px-4 py-2 text-sm font-semibold text-lime-200"><span className="mr-2 inline-block h-2 w-2 rounded-full bg-lime-300" /> Gjakovë, Kosovë</div>
           </div>
-          <div className="relative min-h-[330px] flex-1 overflow-hidden rounded-3xl border border-white/10 bg-[#111a25]">
-            <iframe title="Harta e Gjakovës" src={`https://www.openstreetmap.org/export/embed.html?bbox=20.33%2C42.36%2C20.48%2C42.43&layer=mapnik&marker=42.38%2C20.43`} className="absolute inset-0 h-full min-h-[330px] w-full border-0" loading="lazy" />
+          <div className="relative h-[280px] w-full shrink-0 overflow-hidden rounded-3xl border border-white/10 bg-[#111a25] md:h-[340px]">
+            <iframe title="Harta e Gjakovës" src="https://www.openstreetmap.org/export/embed.html?bbox=20.33%2C42.36%2C20.48%2C42.43&layer=mapnik&marker=42.38%2C20.43" className="absolute inset-0 h-full w-full border-0" loading="lazy" />
             <div className="pointer-events-none absolute left-4 top-4 rounded-2xl border border-white/10 bg-[#0d131d]/95 p-4 shadow-xl backdrop-blur">
               <p className="text-xs font-bold uppercase tracking-widest text-lime-300">Go Taxi</p><p className="mt-1 font-bold">Gjakova dhe rrethina</p><p className="mt-1 text-xs text-slate-400">Harta OpenStreetMap</p>
             </div>
