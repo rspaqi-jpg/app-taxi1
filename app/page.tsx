@@ -195,7 +195,7 @@ export default function Home() {
             <div className="rounded-2xl border border-lime-300/20 bg-lime-300/5 p-4">
               <div className="flex items-center justify-between text-sm text-slate-300"><span>Distanca</span><span>{estimatedKm ? estimatedKm.toFixed(1) + ' km' : '—'}</span></div>
               <div className="mt-2 flex items-center justify-between"><span className="font-semibold">Çmimi i vlerësuar</span><span className="text-2xl font-black text-lime-300">{estimatedKm ? euro(estimatedPrice) : '—'}</span></div>
-              <p className="mt-2 text-xs text-slate-400">Tarifa fillestare: €1/km për Standard. Çmimi final konfirmohet nga shoferi.</p>
+              <p className="mt-2 text-xs text-slate-400">Tarifa: €1,20/km për Basic dhe Lux. Komisioni i platformës: €0,05 për udhëtim. Çmimi final konfirmohet nga shoferi.</p>
             </div>
             <button onClick={bookRide} className="w-full rounded-xl bg-lime-300 px-4 py-4 font-black text-black transition hover:bg-lime-200">🚕 REZERVO TAKSINË</button>
             {message && <p role="status" className="rounded-xl border border-lime-300/20 bg-lime-300/10 p-3 text-sm text-lime-100">{message}</p>}
