@@ -4,32 +4,29 @@ import { useEffect, useMemo, useState } from 'react'
 
 type Ride = {
   id: string
-  name: string
-  phone: string
   pickup: string
   destination: string
   car: string
   price: number
+  platformFee: number
   km: number
   status: 'new' | 'accepted' | 'arrived' | 'completed'
   createdAt: string
 }
 
 const carOptions = [
-  { id: 'standard', name: 'Standard', detail: '4 ulëse', rate: 1, emoji: '🚕' },
-  { id: 'comfort', name: 'Comfort', detail: 'Komoditet shtesë', rate: 1.25, emoji: '🚘' },
-  { id: 'electric', name: 'Electric', detail: 'Vozitje elektrike', rate: 1.5, emoji: '⚡' },
+  { id: 'basic', name: 'Basic', detail: 'Udhëtim i rehatshëm në qytet', rate: 1.2, emoji: '🚕' },
+  { id: 'lux', name: 'Lux', detail: 'Komoditet premium', rate: 1.2, emoji: '🚘' },
+
 ]
 
 const euro = (n: number) => new Intl.NumberFormat('sq-XK', { style: 'currency', currency: 'EUR', maximumFractionDigits: 2 }).format(n)
 
 export default function Home() {
   const [view, setView] = useState<'client' | 'driver' | 'history'>('client')
-  const [name, setName] = useState('')
-  const [phone, setPhone] = useState('')
   const [pickup, setPickup] = useState('')
   const [destination, setDestination] = useState('')
-  const [car, setCar] = useState('standard')
+  const [car, setCar] = useState('basic')
   const [rides, setRides] = useState<Ride[]>([])
   const [routeKm, setRouteKm] = useState<number | null>(null)
   const [routeMessage, setRouteMessage] = useState('')
@@ -37,6 +34,9 @@ export default function Home() {
   const [message, setMessage] = useState('')
   const [completedCount, setCompletedCount] = useState(0)
   const [showReward, setShowReward] = useState(false)
+  const [pickupSuggestions, setPickupSuggestions] = useState<Array<{ display_name: string }>>([])
+  const [destinationSuggestions, setDestinationSuggestions] = useState<Array<{ display_name: string }>>([])
+  const [activeAddress, setActiveAddress] = useState<'pickup' | 'destination' | null>(null)
 
   useEffect(() => {
     try {
@@ -56,6 +56,21 @@ export default function Home() {
   }, [rides, completedCount])
 
   const selectedCar = carOptions.find((item) => item.id === car) ?? carOptions[0]
+
+  useEffect(() => {
+    const query = activeAddress === 'pickup' ? pickup : activeAddress === 'destination' ? destination : ''
+    const setSuggestions = activeAddress === 'pickup' ? setPickupSuggestions : setDestinationSuggestions
+    if (query.trim().length < 3) { setSuggestions([]); return }
+    const controller = new AbortController()
+    const timer = window.setTimeout(async () => {
+      try {
+        const params = new URLSearchParams({ q: query + ', Gjakovë, Kosovo', format: 'jsonv2', addressdetails: '1', limit: '5', countrycodes: 'xk' })
+        const response = await fetch('https://nominatim.openstreetmap.org/search?' + params.toString(), { signal: controller.signal, headers: { Accept: 'application/json' } })
+        if (response.ok) setSuggestions(await response.json() as Array<{ display_name: string }>)
+      } catch { /* suggestions are optional */ }
+    }, 350)
+    return () => { window.clearTimeout(timer); controller.abort() }
+  }, [pickup, destination, activeAddress])
   const estimatedKm = routeKm ?? (pickup.trim() && destination.trim() ? 5 : 0)
   const estimatedPrice = estimatedKm * selectedCar.rate
   const activeRides = useMemo(() => rides.filter((ride) => ride.status !== 'completed'), [rides])
@@ -94,8 +109,8 @@ export default function Home() {
   }
 
   function bookRide() {
-    if (!name.trim() || !phone.trim() || !pickup.trim() || !destination.trim()) {
-      setMessage('Plotëso emrin, telefonin, nisjen dhe destinacionin.')
+    if (!pickup.trim() || !destination.trim()) {
+      setMessage('Shkruaj adresën e nisjes dhe destinacionin.')
       return
     }
     const km = routeKm ?? estimatedKm
@@ -105,12 +120,11 @@ export default function Home() {
     }
     const ride: Ride = {
       id: 'GT-' + Math.random().toString(36).slice(2, 8).toUpperCase(),
-      name: name.trim(),
-      phone: phone.trim(),
       pickup: pickup.trim(),
       destination: destination.trim(),
       car: selectedCar.name,
-      price: Math.max(1, km * selectedCar.rate),
+      price: km * selectedCar.rate,
+      platformFee: 0.05,
       km,
       status: 'new',
       createdAt: new Date().toISOString(),
@@ -138,8 +152,8 @@ export default function Home() {
           <header className="mb-8 flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-lime-300 text-2xl text-black">🚕</div>
             <div>
-              <p className="text-xl font-black tracking-tight">GO TAXI <span className="text-lime-300">GJAKOVA</span></p>
-              <p className="text-xs text-slate-400">Udhëto lehtë. Udhëto sigurt.</p>
+              <p className="text-xl font-black tracking-tight">GJAKOVA <span className="text-lime-300">TAKSI</span></p>
+              <p className="text-xs text-slate-400">Komoditet premium · Gjakovë</p>
             </div>
           </header>
 
@@ -156,18 +170,18 @@ export default function Home() {
               <p className="mb-1 text-xs font-bold uppercase tracking-[.2em] text-lime-300">Rezervim i shpejtë</p>
               <h1 className="text-2xl font-extrabold">Ku po shkojmë?</h1>
             </div>
-            <label className="block text-sm text-slate-300">Emri dhe mbiemri
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Shkruaj emrin" autoComplete="name" className="mt-2 w-full rounded-xl border border-white/10 bg-[#070b12] px-4 py-3 text-white outline-none focus:border-lime-300" />
-            </label>
-            <label className="block text-sm text-slate-300">Numri i telefonit
-              <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+383 ..." type="tel" autoComplete="tel" className="mt-2 w-full rounded-xl border border-white/10 bg-[#070b12] px-4 py-3 text-white outline-none focus:border-lime-300" />
-            </label>
-            <label className="block text-sm text-slate-300">Vendi i nisjes
-              <input value={pickup} onChange={(e) => { setPickup(e.target.value); setRouteKm(null) }} placeholder="p.sh. Çarshia e Madhe" className="mt-2 w-full rounded-xl border border-white/10 bg-[#070b12] px-4 py-3 text-white outline-none focus:border-lime-300" />
-            </label>
-            <label className="block text-sm text-slate-300">Destinacioni
-              <input value={destination} onChange={(e) => { setDestination(e.target.value); setRouteKm(null) }} placeholder="p.sh. Spitali i Gjakovës" className="mt-2 w-full rounded-xl border border-white/10 bg-[#070b12] px-4 py-3 text-white outline-none focus:border-lime-300" />
-            </label>
+            <div className="relative">
+              <label className="block text-sm text-slate-300">Adresa e nisjes
+                <input value={pickup} onFocus={() => setActiveAddress('pickup')} onChange={(e) => { setPickup(e.target.value); setRouteKm(null); setActiveAddress('pickup') }} placeholder="Shkruaj adresën ose pikën e nisjes" autoComplete="street-address" className="mt-2 w-full rounded-xl border border-white/10 bg-[#070b12] px-4 py-3 text-white outline-none focus:border-lime-300" />
+              </label>
+              {activeAddress === 'pickup' && pickupSuggestions.length > 0 && <div className="absolute z-20 mt-1 max-h-52 w-full overflow-auto rounded-xl border border-white/10 bg-[#111a25] shadow-2xl">{pickupSuggestions.map((item, index) => <button key={item.display_name + index} onClick={() => { setPickup(item.display_name); setPickupSuggestions([]); setActiveAddress(null); setRouteKm(null) }} className="block w-full border-b border-white/5 px-3 py-3 text-left text-sm hover:bg-lime-300/10">📍 {item.display_name}</button>)}</div>}
+            </div>
+            <div className="relative">
+              <label className="block text-sm text-slate-300">Ku dëshiron të shkosh?
+                <input value={destination} onFocus={() => setActiveAddress('destination')} onChange={(e) => { setDestination(e.target.value); setRouteKm(null); setActiveAddress('destination') }} placeholder="Shkruaj destinacionin" className="mt-2 w-full rounded-xl border border-white/10 bg-[#070b12] px-4 py-3 text-white outline-none focus:border-lime-300" />
+              </label>
+              {activeAddress === 'destination' && destinationSuggestions.length > 0 && <div className="absolute z-20 mt-1 max-h-52 w-full overflow-auto rounded-xl border border-white/10 bg-[#111a25] shadow-2xl">{destinationSuggestions.map((item, index) => <button key={item.display_name + index} onClick={() => { setDestination(item.display_name); setDestinationSuggestions([]); setActiveAddress(null); setRouteKm(null) }} className="block w-full border-b border-white/5 px-3 py-3 text-left text-sm hover:bg-lime-300/10">🏁 {item.display_name}</button>)}</div>}
+            </div>
             <button onClick={calculateRoute} disabled={loadingRoute} className="w-full rounded-xl border border-lime-300/40 px-4 py-3 font-bold text-lime-200 hover:bg-lime-300/10 disabled:opacity-50">{loadingRoute ? 'Po llogaritet rruga…' : '⌖ Llogarit rrugën reale'}</button>
             {routeMessage && <p role="status" className="rounded-xl bg-white/5 p-3 text-sm text-slate-300">{routeMessage}</p>}
             <div>
@@ -192,8 +206,8 @@ export default function Home() {
             <h2 className="mb-2 text-2xl font-extrabold">Porositë aktive</h2>
             <p className="mb-5 text-sm text-slate-400">Këtu shfaqen rezervimet e ruajtura në këtë shfletues.</p>
             {activeRides.length === 0 ? <div className="rounded-2xl border border-dashed border-white/15 p-6 text-center text-slate-400">Nuk ka porosi aktive për momentin.</div> : activeRides.map((ride) => <div key={ride.id} className="mb-3 rounded-2xl border border-white/10 bg-white/[.03] p-4">
-              <div className="flex justify-between gap-3"><span className="font-bold">{ride.name}</span><span className="text-sm font-bold text-lime-300">{euro(ride.price)}</span></div>
-              <p className="mt-1 text-xs text-slate-400">{ride.id} · {ride.phone}</p>
+              <div className="flex justify-between gap-3"><span className="font-bold">Rezervim {ride.id}</span><span className="text-sm font-bold text-lime-300">{euro(ride.price)}</span></div>
+              <p className="mt-1 text-xs text-slate-400">Komisioni i platformës: {euro(ride.platformFee)}</p>
               <p className="mt-3 text-sm">📍 {ride.pickup}</p><p className="mt-1 text-sm">🏁 {ride.destination}</p>
               <p className="mt-2 text-xs text-slate-400">{ride.car} · {ride.km.toFixed(1)} km</p>
               <div className="mt-4 flex flex-wrap gap-2">
@@ -211,6 +225,7 @@ export default function Home() {
             {rides.length === 0 ? <div className="rounded-2xl border border-dashed border-white/15 p-6 text-center text-slate-400">Ende nuk ka rezervime. Kthehu te “Rezervo”.</div> : rides.map((ride) => <article key={ride.id} className="mb-3 rounded-2xl border border-white/10 bg-white/[.03] p-4">
               <div className="flex items-center justify-between gap-3"><span className="font-bold">{ride.id}</span><span className="font-bold text-lime-300">{euro(ride.price)}</span></div>
               <p className="mt-2 text-sm">{ride.pickup} → {ride.destination}</p>
+              <p className="mt-1 text-xs text-slate-400">Komisioni i platformës: {euro(ride.platformFee ?? 0.05)}</p>
               <p className="mt-2 text-xs text-slate-400">{ride.car} · {ride.km.toFixed(1)} km · {ride.status === 'new' ? 'Në pritje' : ride.status === 'accepted' ? 'Shoferi po vjen' : ride.status === 'arrived' ? 'Shoferi arriti' : 'Përfunduar'}</p>
             </article>)}
             <div className="mt-5 rounded-2xl bg-white/5 p-4"><p className="text-sm text-slate-400">Udhëtime të përfunduara</p><p className="text-3xl font-black text-lime-300">{completedCount}</p><p className="mt-1 text-xs text-slate-400">Rrota shpërblyese pas çdo 20 udhëtimeve të përfunduara.</p></div>
@@ -219,7 +234,7 @@ export default function Home() {
 
         <section className="flex min-h-[550px] flex-1 flex-col p-5 md:min-h-screen md:p-8">
           <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-            <div><p className="text-sm font-bold uppercase tracking-[.2em] text-lime-300">Shërbimi lokal</p><h2 className="mt-1 text-3xl font-black md:text-4xl">Taksi në Gjakovë.</h2><p className="mt-2 text-slate-400">Rezervo udhëtimin tënd brenda pak çastesh.</p></div>
+            <div><p className="text-sm font-bold uppercase tracking-[.2em] text-lime-300">Shërbimi lokal</p><h2 className="mt-1 text-3xl font-black md:text-4xl">Udhëto me stil në Gjakovë.</h2><p className="mt-2 text-slate-400">Rezervo udhëtimin tënd brenda pak çastesh.</p></div>
             <div className="rounded-full border border-lime-300/20 bg-lime-300/10 px-4 py-2 text-sm font-semibold text-lime-200"><span className="mr-2 inline-block h-2 w-2 rounded-full bg-lime-300" /> Gjakovë, Kosovë</div>
           </div>
           <div className="relative h-[280px] w-full shrink-0 overflow-hidden rounded-3xl border border-white/10 bg-[#111a25] md:h-[340px]">
